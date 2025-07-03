@@ -1,0 +1,49 @@
+name: Publish Docker Images
+
+permissions:
+  contents: read
+  packages: write
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Тег версии (например, v1.0.0 или latest)'
+        required: true
+        default: 'latest'
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      # Чекаут кода
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Авторизация в GHCR
+      - name: Log in to GHCR
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Сборка и публикация образа основного приложения
+      - name: Build and push API Docker image
+        run: |
+          OWNER=${{ github.repository_owner }}
+          REPO=${{ github.event.repository.name }}
+          REPO_LOWER=$(echo "$REPO" | tr '[:upper:]' '[:lower:]')
+          docker build -f Dockerfile -t ghcr.io/$OWNER/$REPO_LOWER:${{ github.event.inputs.version }} -t ghcr.io/$OWNER/$REPO_LOWER:latest .
+          docker push ghcr.io/$OWNER/$REPO_LOWER:${{ github.event.inputs.version }}
+          docker push ghcr.io/$OWNER/$REPO_LOWER:latest
+
+      # Сборка и публикация образа consumer
+      - name: Build and push Consumer Docker image
+        run: |
+          OWNER=${{ github.repository_owner }}
+          REPO=${{ github.event.repository.name }}
+          REPO_LOWER=$(echo "$REPO" | tr '[:upper:]' '[:lower:]')
+          docker build -f Dockerfile.consumer -t ghcr.io/$OWNER/${REPO_LOWER}-consumer:${{ github.event.inputs.version }} -t ghcr.io/$OWNER/${REPO_LOWER}-consumer:latest .
+          docker push ghcr.io/$OWNER/${REPO_LOWER}-consumer:${{ github.event.inputs.version }}
+          docker push ghcr.io/$OWNER/${REPO_LOWER}-consumer:latest

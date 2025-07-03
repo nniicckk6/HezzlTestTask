@@ -1,0 +1,44 @@
+# CI-пайплайн для GitHub Actions
+# Сборка, проверка кода и запуск тестов для проекта на Go
+name: CI
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # Получаем код из репозитория
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Устанавливаем нужную версию Go
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.24'
+
+      # Кэшируем модули Go для ускорения сборок
+      - name: Cache Go modules
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      # Скачиваем зависимости
+      - name: Install dependencies
+        run: go mod download
+
+      # Проверка форматирования кода
+      - name: Проверка форматирования (go fmt)
+        run: go fmt ./...
+
+      # Запуск тестов
+      - name: Запуск тестов
+        run: go test ./... -v -timeout 60s
+
